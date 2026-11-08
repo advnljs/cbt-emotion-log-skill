@@ -1,6 +1,6 @@
 {
   "name": "cbt-emotion-log",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Agent Skill: a CBT thought record you keep just by talking — it supports you first, quietly sorts facts, thoughts and feelings, checks old worries against what actually happened, offers other angles and keeps your good moments. Works in Chinese.",
   "type": "module",
   "bin": {

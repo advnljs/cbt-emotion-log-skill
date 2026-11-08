@@ -41,10 +41,6 @@ Records are kept in a file you choose (by default `emotion_log.json`) or another
 
 This is a journaling companion based on the thought record of cognitive behavioural therapy (CBT). It does not diagnose and is not a substitute for professional help. If you are thinking about hurting yourself or someone else, please reach out to someone you trust, a professional, or your local crisis line now.
 
-## 中文说明
-
-**CBT 情绪记录**：焦虑的时候，像跟朋友聊天一样说给你的 agent 听。它先接住你，再把事实、想法、情绪和担心分开记好；之后陪你回头核对担心的事有没有发生，帮你换个角度看、找到事情里好的部分，也替你收好开心的时刻。不诊断、不说教，不能替代专业心理帮助。安装方式见上方 Install。
-
 ## License
 
 [MIT-0](LICENSE)

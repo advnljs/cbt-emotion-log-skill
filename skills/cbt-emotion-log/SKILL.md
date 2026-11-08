@@ -1,6 +1,6 @@
 ---
 name: cbt-emotion-log
-description: 按 CBT 思维记录法，用自然语言替用户维护情绪事件表：新建事件、回访重评、验证焦虑预测、观察反刍、统计情绪模式，并留住有事实支撑的支持与积极体验。只要用户倾诉让自己有情绪的事、提到之前记过的事有了进展或又想起它、或想回顾自己的情绪记录，都应使用。
+description: Keep a CBT thought record (an emotion event log) for the user through plain conversation — support them first, then quietly log what happened, the automatic thought, the emotions and any worried prediction; revisit and re-rate events, settle predictions against what actually happened, notice rumination, offer other angles and the good parts of an event, keep fact-based support and precious moments, and compute stats on request. Use it whenever the user talks about something that upset them (or a happy, precious moment), mentions progress on or recalls something logged before, or wants to look back on their records. The skill itself is written in Chinese. 中文触发：倾诉让自己焦虑、生气、难过的事，提到之前记过的事有了后续或又想起它，想回顾情绪记录，问担心的事有多少真的发生了。
 ---
 
 # CBT 情绪事件表
