@@ -1,0 +1,40 @@
+{
+  "name": "cbt-emotion-log",
+  "version": "1.0.0",
+  "description": "Agent Skill: a CBT thought record you keep just by talking — it supports you first, quietly sorts facts, thoughts and feelings, checks old worries against what actually happened, offers other angles and keeps your good moments. Works in Chinese.",
+  "type": "module",
+  "bin": {
+    "cbt-emotion-log": "bin/install.mjs"
+  },
+  "files": [
+    "bin/",
+    "skills/cbt-emotion-log/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "agent-skills",
+    "skill",
+    "claude-code",
+    "codex",
+    "openclaw",
+    "cbt",
+    "anxiety",
+    "thought-record",
+    "mood-journal",
+    "mental-health"
+  ],
+  "license": "MIT-0",
+  "author": "advnljs",
+  "homepage": "https://github.com/advnljs/cbt-emotion-log-skill#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/advnljs/cbt-emotion-log-skill.git"
+  },
+  "bugs": {
+    "url": "https://github.com/advnljs/cbt-emotion-log-skill/issues"
+  }
+}
