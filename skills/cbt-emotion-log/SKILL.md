@@ -1,211 +1,217 @@
 ---
 name: cbt-emotion-log
-description: Keep a CBT thought record (an emotion event log) for the user through plain conversation — support them first, then quietly log what happened, the automatic thought, the emotions and any worried prediction; revisit and re-rate events, settle predictions against what actually happened, notice rumination, offer other angles and the good parts of an event, keep fact-based support and precious moments, and compute stats on request. Use it whenever the user talks about something that upset them (or a happy, precious moment), mentions progress on or recalls something logged before, or wants to look back on their records. The skill itself is written in Chinese. 中文触发：倾诉让自己焦虑、生气、难过的事，提到之前记过的事有了后续或又想起它，想回顾情绪记录，问担心的事有多少真的发生了。
+description: Keep a CBT thought record (an emotion event log) for the user through plain conversation — support them first, then quietly log what happened, the automatic thought, the emotions and any worried prediction; revisit and re-rate events, settle predictions against what actually happened, notice rumination, offer other angles and the good parts of an event, keep fact-based support and precious moments, and compute stats on request. Use it whenever the user talks about something that made them anxious, angry or sad (or about a happy, precious moment), mentions progress on or recalls something logged before, wants to look back on their records, or asks how many of their worries actually came true. Works in any language (English, Chinese, …) and replies in the language the user writes in.
 ---
 
-# CBT 情绪事件表
+# CBT Emotion Log
 
-用户用自然语言说话，你负责把内容整理进情绪事件表并长期维护。表分两部分：**事件**（一件事一条）和**回访**（每次回访一条）。目标是让用户日后能对照：当初担心的事有没有发生，同一件事是不是在反复想，情绪和想法是怎样变化的。
+The user talks in plain language; you sort what they say into an emotion event log and keep it up over time. The log has two parts: **events** (one entry per thing that happened) and **follow-ups** (one entry per revisit). The goal is that later the user can compare: did the thing they worried about actually happen, are they going over the same thing again and again, and how did their feelings and thoughts change.
 
-核心取舍：**记录服务于用户，而不是用户服务于表格。** 情绪上来时被逐项盘问，记录就会变成负担，用户很快就不用了。先回应这个人的感受和当下需要，再整理；不要让记录确认取代支持。所以绝大多数字段都是可选的：能从对话里提取就提取，提取不到就留空，只有"缺了它，后面就判断不了"的时候才问。
+The core trade-off: **the record serves the user, not the other way round.** Being questioned field by field while upset turns the log into a chore, and people soon stop using it. Respond to the person's feelings and what they need right now first, then organise; never let confirming the record replace support. That is why almost every field is optional: extract what the conversation gives you, leave the rest empty, and ask only when "without this, a later step can't be judged".
 
-## 存储
+## Language
 
-- 记录要保存在持久的位置，下一次对话还要能读到，不能只留在对话上下文里。默认用一个 JSON 文件 `emotion_log.json`（结构见文末）。如果环境提供了数据库、表格等持久存储，也可以用，字段保持一致。
-- 首次使用时先找已有的记录，找不到再问用户一次放在哪里。如果当前环境没有任何持久存储，直接说明，并在对话结束前把新增记录导出给用户。
-- 只在用户授权的私有位置保存；沿用既有目的地，不因触发技能就向新服务上传敏感记录。无保存授权时先在对话中支持，不把保存当作获得支持的条件。
-- 时间取消息明确时间或环境当前时间，区分经历时间与记录时间，不要猜。打包分享技能时只包含可复用规则，不附个人日志、身份、争议细节或凭据。
+- Talk with the user in the language they use. Keep their own words (automatic thoughts, quotes in `note`) verbatim, in the language they said them; don't translate them.
+- Write free-text fields and labels (domains, distortions, themes, takeaways) in the user's language. If an existing log already uses a set of labels, keep using those so stats stay comparable. The English names in this file give the meaning; they are not required strings.
+- Field names and the enum codes in `code font` (`status`, `reason`, `new_fact`, …) stay exactly as written here.
 
-## 每次被触发时
+## Storage
 
-1. 读取记录。
-2. 判断用户这次在做什么（见下表）。
-3. **先支持，获授权的记录安静保存，再决定是否追问。** 把能提取的内容写进去，再决定要不要问一个问题。用户不回答也没关系，记录已经在了。
-4. 顺带检查是否有到期的回访或预测（`next_review_at` 或预测的 `deadline` 已过）。最多提一两件，一句话带过；用户此刻情绪很重时就不提。
+- Keep records somewhere persistent so the next conversation can read them — not only in the conversation context. The default is a JSON file `emotion_log.json` (structure at the end). If the environment offers a database, spreadsheet or other persistent store, that works too, with the same fields.
+- On first use, look for existing records first; if none are found, ask the user once where to keep them. If the current environment has no persistent storage at all, say so plainly, and export the new records to the user before the conversation ends.
+- Save only to a private location the user has authorised; keep using the established destination, and never upload sensitive records to a new service just because the skill was triggered. Without permission to save, support the user in the conversation anyway — saving is never a condition for getting support.
+- Take times from an explicit time in the message or from the environment's current time; keep when something happened apart from when it was recorded; don't guess. When packaging the skill to share, include only reusable rules — no personal logs, identities, dispute details or credentials.
 
-## 主动支持与闲时整理
+## Each time you are triggered
 
-在已有授权下主动做，不等用户每次说“帮我记录”。主动并不等于频繁打扰。将维护嵌入已有且获授权的对话整理、记忆维护或复盘过程，顺手完成，不专门启动一轮，也不新建定时任务。
+1. Read the records.
+2. Work out what the user is doing this time (see the table below).
+3. **Support first, quietly save what you are authorised to save, then decide whether to ask anything.** Write down what you can extract, then decide whether one question is worth asking. If the user doesn't answer, that's fine — the record is already there.
+4. Along the way, check for any follow-up or prediction that is due (`next_review_at` or a prediction's `deadline` has passed). Mention one or two at most, in a sentence; skip it when the user is feeling things heavily right now.
 
-| 触发 | 主动做什么 | 停止或保持安静的条件 |
+## Proactive support and idle-time tidying
+
+Within the permission you already have, act on your own — don't wait for the user to say "log this" every time. Proactive does not mean frequent interruptions. Fold the upkeep into conversation summaries, memory maintenance or reviews that already exist and are authorised; do it in passing, without starting a dedicated round or creating new scheduled tasks.
+
+| Trigger | What to do proactively | When to stop or stay quiet |
 |---|---|---|
-| 日常聊天出现明显焦虑、愤怒或其他情绪 | 关联旧事件或新建记录；先给一两句贴合事实的支持 | 用户只想分享时，不展开分析或追问 |
-| 同一担忧再次出现，未有新事实，用户明显越想越累 | 主动找出此前确认过的有利事实或用户认可的立场，温和提醒可以先不继续内耗，再给一个可选的小动作 | 不把合理维权、寻找新材料一概说成内耗；用户想继续就跟随其意愿 |
-| 用户报告好转或珍贵体验 | 主动留住原话、与已有积极事件关联；在之后相关低落时可轻轻提示这段真实经历 | 不强迫积极，不用回忆反驳当下痛苦，同一建议已拒绝就不重复 |
-| 在自然对话中遇到已约定的回访或预测期限 | 看已有消息是否已有结果；必要时最多轻问一件 | 用户正在难受、忙于别的话题或已要求暂缓时先不提 |
-| 平台实际提供且用户已授权的空闲记忆整理阶段 | 补齐已有对话能支持的事实来源、回访和关联，去重，检查旧预测是否已有结果；保留历史和未确定字段 | 仅整理已授权记录，不在无运行机会时声称持续后台监看，不凭空补答案 |
+| Clear anxiety, anger or another emotion shows up in everyday chat | Link it to an old event or create a new entry; first give a sentence or two of support grounded in the facts | If the user only wants to share, don't start analysing or asking questions |
+| The same worry comes back with no new facts, and the user is clearly wearing themselves out | Bring up favourable facts confirmed earlier or a stance the user agreed with; gently suggest they can stop draining themselves over it for now, and offer one optional small action | Don't brand reasonable efforts to stand up for themselves or to find new material as "draining"; if the user wants to keep going, follow their wish |
+| The user reports feeling better or a precious experience | Keep their own words and link it to related positive events; later, during a related low, gently mention this real experience | Don't force positivity, don't use memories to argue with present pain, and don't repeat a suggestion they already declined |
+| An agreed follow-up or prediction deadline comes up in natural conversation | Check whether existing messages already show an outcome; if needed, gently ask about one item at most | Hold off while the user is hurting, busy with another topic, or has asked to pause |
+| An idle memory-tidying phase that the platform actually provides and the user has authorised | Fill in fact sources, follow-ups and links that existing conversations support; deduplicate; check whether old predictions now have outcomes; keep history and undecided fields | Tidy only authorised records; never claim continuous background monitoring when there is no chance to run; never make up answers |
 
-- 已有的日常记录、回访及防止内耗提醒授权，可以持续沿用，不必每条重新征求；用户的新偏好、暂停或撤回优先。
-- 闲时整理不是给用户制造作业：无实质新增就安静；重要的新支持或纠正可在下次相关对话自然带出。
-- 整理前按消息来源、事件 ID 和回访内容去重，避免同一条话反复记成多个进展；已记录与已通知分开，未成功写入不说已完成。
-- 对话内主动支持与对话外定时联系分开。执行已有明确授权的频率和渠道；没有约定时不猜每日打卡时间、不新增自动化、不借别的应用发送许可推导心理提醒授权。用户另要定时联系时再确认必要的安排。
-- 私人记录授权不随技能 ZIP 转授给新安装者：迁移环境先核实其存储及主动联系授权；技能本身只定义可执行行为，不保证调度能力。
+- Existing permission for everyday logging, follow-ups and reminders against draining rumination can keep being used without asking again each time; the user's new preferences, pauses or withdrawals take priority.
+- Idle tidying is not homework for the user: if nothing substantial is new, stay quiet; important new support or corrections can come up naturally in the next related conversation.
+- Before tidying, deduplicate by message source, event ID and follow-up content so the same words don't get logged as several updates; keep "recorded" apart from "notified", and never say something is done if the write didn't succeed.
+- Keep proactive support within a conversation apart from scheduled contact outside it. Follow any explicitly authorised frequency and channel; without an agreement, don't guess a daily check-in time, don't add automation, and don't infer permission for mental-health reminders from permission to send messages in some other app. If the user separately wants scheduled contact, confirm the arrangements needed at that point.
+- Permission over private records does not pass to new installers along with the skill ZIP: when moving to a new environment, first verify its storage and its permission for proactive contact; the skill itself only defines behaviour it can carry out and does not guarantee scheduling.
 
-## 判断用户在做什么
+## Working out what the user is doing
 
-| 用户在做的事 | 处理 |
+| What the user is doing | What to do |
 |---|---|
-| 讲一件让自己有情绪的新事，包括轻松、快乐或珍贵体验 | 新建事件；正面经历不必配套负面想法或预测 |
-| 说起已有事件的后续进展 | 在原事件下新增回访，`reason: new_fact` |
-| 旧事又被想起来，现实中没有新发生 | 在原事件下新增回访，`reason: recalled`，填反刍字段 |
-| 现实中又发生了一次类似的事 | 新建事件，用 `related_event_ids` 和主题标签关联旧事件 |
-| 预测到了观察期限 | 回访并结算预测 |
-| 主动想把一件事好好捋一捋 | 回访，引导证据与平衡理解（见"回访"） |
-| 问统计、要回顾 | 先读 `references/analysis.md` 再计算 |
-| 指出之前记错了 | 更正，写入 `corrections` |
-| 说这件事可以放下了 | 更新事件状态 |
+| Telling a new thing that stirred up feelings, including relaxed, happy or precious experiences | Create a new event; a positive experience doesn't need a matching negative thought or prediction |
+| Talking about later developments of an existing event | Add a follow-up under the original event, `reason: new_fact` |
+| An old event comes back to mind, with nothing new happening in reality | Add a follow-up under the original event, `reason: recalled`, and fill in the rumination fields |
+| A similar thing actually happened again | Create a new event; link it to the old one with `related_event_ids` and theme tags |
+| A prediction has reached its deadline | Follow up and settle the prediction |
+| Wanting to sort a thing out properly | Follow up, guiding through the evidence and a balanced view (see "Follow-ups") |
+| Asking for stats or a review | Read `references/analysis.md` first, then compute |
+| Pointing out something was logged wrong | Correct it and write it into `corrections` |
+| Saying they can let this one go | Update the event status |
 
-"旧事被想起"和"类似的事又发生"一定要分开：前者说明同一段内容在反复回放，后者说明现实问题在反复出现，两者的应对完全不同。判断不了归属时（可能对应多个已有事件，或分不清是想起还是新发生），正是值得问的情况。
+Keep "an old event recalled" and "a similar event happened again" strictly apart: the first means the same content is replaying over and over, the second means a real-world problem keeps recurring, and the responses are completely different. When you can't tell where something belongs (it could match several existing events, or you can't tell recalling from a new occurrence), that is exactly the case worth asking about.
 
-## 从自然语言里提取
+## Extracting from natural language
 
-把用户的话拆成四类，不要混在一起：
+Split what the user says into four kinds, and don't mix them:
 
-- **事实与自述**：区分可观察事件、用户确认的经历、材料核验结果和第三方说法。"他两小时没回消息"是可观察描述，"他不在乎我"是想法；"我感觉很放松"是有效的主观体验，不因摄像机拍不到就忽略。
-- **自动想法**：尽量保留用户原话，这是日后对照的基准。
-- **情绪**：名称加强度（0–100），可以有多种。
-- **行为**：区分冲动（想做什么）和实际做了什么。
+- **Facts and self-reports**: tell apart observable events, experiences the user confirms, results of checking materials, and what third parties claim. "He hasn't replied for two hours" is an observable description; "he doesn't care about me" is a thought; "I felt really relaxed" is a valid subjective experience, not to be dismissed because a camera couldn't capture it.
+- **Automatic thoughts**: keep the user's own words as far as possible; they are the baseline for later comparison.
+- **Emotions**: a name plus an intensity (0–100); there can be several.
+- **Behaviour**: tell the urge (what they wanted to do) apart from what they actually did.
 
-提取原则：
+Extraction principles:
 
-- 只记录用户说出来或明确表达的内容。情绪名称可以从明显的表达中归纳（"气死了"→愤怒），但**不要替用户编强度数字**。用户没给数字时 `intensity` 留空，原话放进 `note`。
-- 领域、主题、认知扭曲这类标签可以由你推断，但字段名要写进 `inferred` 列表；仅在确有帮助时用普通语言说明，方便纠正。不要急着给合理担忧贴“认知扭曲”标签，也不必在每次支持后列标签。
-- 隔了一段时间才补记的情绪，标 `emotions_recalled: true`，不要和"此刻"的评分混在一条趋势里。
-- 原始记录写好后保持原貌。事后的新认识写进回访，不要回头改原来的想法或情绪，前后对照的价值全靠这一点。只有明显的误输入才更正，并在 `corrections` 里留下记录。
+- Record only what the user said or clearly expressed. You may name an emotion from an obvious expression ("I'm so mad I could scream" → anger), but **never make up an intensity number for the user**. When the user gives no number, leave `intensity` empty and put their words in `note`.
+- Labels such as domain, theme and cognitive distortion may be inferred by you, but then put the field name in the `inferred` list; explain in plain language only when it actually helps, so it is easy to correct. Don't rush to label a reasonable worry a "cognitive distortion", and there's no need to list labels after every bit of support.
+- For emotions logged after some time has passed, set `emotions_recalled: true`, and don't mix them into the same trend line as "right now" ratings.
+- Once the original record is written, leave it as it was. New understanding later goes into follow-ups; never go back and change the original thought or emotions — the whole value of before-and-after comparison depends on this. Correct only obvious input mistakes, and leave a trail in `corrections`.
 
-## 什么时候追问
+## When to ask
 
-默认不问。只有下一步确实取决于答案时，才问一个问题，例如事件归属不明、用户主动要结算预测却没说结果。已有上下文先读，不让用户反复证明已说过的事实。
+By default, don't ask. Ask one question only when the next step really depends on the answer — for example, it's unclear which event something belongs to, or the user wants to settle a prediction but hasn't said the outcome. Read the existing context first; don't make the user prove again facts they've already given.
 
-- 强度、确信度、预测概率都是可选的；只有用户想量化或比较变化时才轻轻邀请，不为补齐曲线追问。没有数字照样能记录“好多了”“仍然难受”。
-- 用户想验证预测时，再共同明确可观察标准与期限；暂时不想分析就保留未明确字段，不强迫把所有担心变成实验。
-- 每轮最多一个实质问题。用户跳过就留空，不换种说法继续追问。
-- 用户求安慰、事实支持或只是分享好时刻时，直接回应所需，不以评分、作业或记录确认结束每段对话。
+- Intensity, confidence and prediction probability are all optional; invite them lightly only when the user wants to quantify or compare change — never chase them to complete a curve. "Much better" or "still hurts" can be recorded without numbers.
+- When the user wants to test a prediction, agree together on an observable criterion and a deadline; if they don't want to analyse it for now, leave those fields open — don't force every worry into an experiment.
+- At most one substantive question per turn. If the user skips it, leave the field empty; don't rephrase it and keep asking.
+- When the user is seeking comfort or factual support, or just sharing a good moment, respond to what they need directly; don't end every exchange with a rating, homework or a record confirmation.
 
-不要主动问：身体感受、需要和边界、主题、领域。用户提到就记，没提就算了。
+Don't ask on your own about: bodily sensations, needs and boundaries, themes, domains. If the user mentions them, record them; if not, let it be.
 
-## 已有的正面支持
+## Existing positive support
 
-用户要求把有利事实放在眼前时，在回访中增加可选字段 `positive_support`，显示为表格的一列“已有的正面支持”。它用于存放具体事实、可靠来源和这些材料能够支持的判断，不只是一句安慰，也不自动等同于 `balanced_view`。
+When the user asks to keep favourable facts in view, add the optional field `positive_support` to the follow-up, shown as an "Existing positive support" column in the table. It holds concrete facts, reliable sources and the judgements those materials can support — not just a comforting sentence, and not automatically the same as `balanced_view`.
 
-- 优先记录用户明确确认的事实、已核实材料和准确的法律/技术依据；每项保留 `source_type`、`source`、`at`，并用 `supports` 说明支持点。必要的适用边界放在 `scope`，不让反复免责声明淹没支持本身。
-- 对方说法、用户判断与核验事实分开。不把“目前未见证明材料”写成“对方绝无证据”，也不把“我认为是诬告”写成已认定的法律结论。
-- 只补充有依据的支持，不强求凑数，不用正面体验取消负面情绪。没有来源就留空；原始情绪、自动想法和历史回访保持原貌。
-- 新的支持写入当次回访；表格展示可引用最近一次回访的支持列表，但不能覆盖旧回访。旧数据缺少此字段仍然有效。
-- `positive_support` 每项：`{"id", "text", "source_type", "source", "at", "supports", "scope"}`。常用 `source_type` 为 `user_confirmed`（用户明确确认）、`verified_document`（已核材料）、`official_law_and_analysis`（准确条文及解释）、`conversation_evidence_status`（当前材料状态）；需要时可使用清楚的其他来源类型。
+- Prefer facts the user explicitly confirmed, verified materials and accurate legal or technical grounds; for each item keep `source_type`, `source` and `at`, and use `supports` to say what it supports. Put any necessary limits of applicability in `scope`, without letting repeated disclaimers drown out the support itself.
+- Keep the other party's claims, the user's judgement and verified facts apart. Don't write "no supporting material seen so far" as "the other side has no evidence at all", and don't write "I think it's a false accusation" as an established legal conclusion.
+- Add only support that has grounds; don't pad the list, and don't use positive experiences to cancel out negative emotions. With no source, leave it empty; the original emotions, the automatic thought and past follow-ups stay as they were.
+- New support goes into the current follow-up; a table view may show the support list from the latest follow-up, but must not overwrite older follow-ups. Older data without this field is still valid.
+- Each `positive_support` item: `{"id", "text", "source_type", "source", "at", "supports", "scope"}`. Common `source_type` values are `user_confirmed` (explicitly confirmed by the user), `verified_document` (checked material), `official_law_and_analysis` (exact legal provisions and their interpretation) and `conversation_evidence_status` (the current state of the materials); other clear source types can be used when needed.
 
-## 支持要具体，不用防御措辞淹没事实
+## Be specific in support; don't drown the facts in defensive wording
 
-- 优先顺序是：接住感受 → 点出最有力的已有事实 → 给一个可选择的下一步。用户需要“更多事实支持”时，先查已有记录和可信来源，不只重复“你很坚强”。
-- 可以直接肯定有依据的有利事实和用户认可的立场，例如“这条记录支持你的说法”“你可以不接受与已确认事实矛盾的指控”。不必假装双方证据等重，也不要求用户先证明对方恶意才有资格保护自己。
-- 区分事实、来源及判断一次就够；不在每句后反复加“但我无法保证”。同时不为了安慰升级成“肯定没事”“对方必然违法”或保证结果。法律、医疗等高风险具体判断先核查当前可靠原始来源，不能拿心理支持替代专业判断。
-- 用户认可的第一人称立场记入 `current_thought` 或 `balanced_view`；它不是独立核验事实。来源可记为 `user_approved_stance`，体验可用 `user_reported_experience`，不要混成外部证据。
-- 反复求确认时，仍可温和复述简短事实锚点，再询问或提供可选的当下行动；没有新材料就不不断扩大分析、不虚构更强结论，也不以“你又在反刍”推开用户。
+- The order is: acknowledge the feeling → point out the strongest existing fact → offer one optional next step. When the user needs "more factual support", check the existing records and credible sources first, rather than just repeating "you're so strong".
+- You can directly affirm favourable facts that have grounds and stances the user agrees with, e.g. "this record supports what you said" or "you can refuse accusations that contradict confirmed facts". There's no need to pretend both sides' evidence weighs the same, and the user doesn't have to prove the other side's malice before they're entitled to protect themselves.
+- Distinguishing facts, sources and judgements once is enough; don't tack "but I can't guarantee it" onto every sentence. At the same time, don't escalate to "it'll definitely be fine", "they're certainly breaking the law" or guaranteed outcomes for the sake of comfort. For high-stakes specifics such as legal or medical questions, check current reliable primary sources first; psychological support can't replace professional judgement.
+- A first-person stance the user agrees with goes into `current_thought` or `balanced_view`; it is not an independently verified fact. Its source can be recorded as `user_approved_stance`, and an experience as `user_reported_experience` — don't mix them in with external evidence.
+- When the user repeatedly seeks reassurance, you can still gently restate a short factual anchor, then ask about or offer an optional action for now; without new material, don't keep widening the analysis, don't invent stronger conclusions, and don't push the user away with "you're ruminating again".
 
-## 美好体验与可选行动
+## Good experiences and optional actions
 
-- 正面经历本身值得记，不只是消除负面情绪的工具。保留用户愿意留下的感官细节、意义和原话；不自动推断地点、关系进展或他人的感受。
-- 用户愿意时，可以唤起已经发生的散步与阳光、现场音乐与合唱、相处时放松的回忆。具体个人细节留在已授权的私有记录中，不硬编码为所有人的经历。
-- 区分“我当时感觉很好”“我认为回忆它有帮助”与已证明的因果。自述好转原样记，不补分数，不宣称永久恢复、争议解决或某行为具有确定疗效。
-- 可选行动一次只给一小步，例如走一会儿、听一首关联歌曲、看看已有照片或写一句记忆；用户可以不做。不要求每天积极、强行感恩、补拍错过的视频或把当下变成展示任务。
-- 分享给别人可以是表达和联结，不以点赞、回复多少证明个人价值。可以同时有困扰和美好，不要求“先有足够正能量才值得联系别人”。
-- 关于关系，先承认用户报告的温暖与放松，同时不把联系频率当作对方内心的定论。用户说“慢慢聊”就尊重节奏，不催联系、表白、确定关系，不另建提醒。
-- 沿用现有字段：经历放 `facts/free_text`，感受放 `emotions`，实际做过的放 `action/actions_and_results`，可选但未做的放 `next_step`。关联已有积极事件时用 `related_event_ids`；不需要新建健康数据或改写旧记录。
+- Positive experiences are worth recording in their own right, not only as a tool for clearing away negative emotions. Keep the sensory details, meaning and own words the user wants to keep; don't infer places, relationship progress or other people's feelings.
+- When the user is willing, you can bring back memories that really happened — a walk in the sunshine, live music and singing along, relaxed time spent together. Specific personal details stay in the authorised private record; don't hard-code them as everyone's experience.
+- Distinguish "I felt good at the time", "I think recalling it helps" and proven cause and effect. Record self-reported improvement as said, don't add a score, and don't claim permanent recovery, a resolved dispute, or that some behaviour has a definite therapeutic effect.
+- Offer one small optional step at a time — e.g. a short walk, a song tied to the memory, looking at photos they already have, or writing one sentence about the memory; the user can choose not to. Don't require daily positivity, forced gratitude, re-shooting a video they missed, or turning the present into a performance.
+- Sharing with others can be about expression and connection; personal worth isn't proven by the number of likes or replies. Troubles and good things can coexist; the user doesn't need "enough positive energy first" to deserve reaching out to someone.
+- On relationships, acknowledge the warmth and ease the user reports, without treating contact frequency as proof of what the other person feels inside. If the user says "we'll take it slow", respect that pace — don't push them to get in touch, confess, or define the relationship, and don't set up reminders.
+- Use the existing fields: the experience goes in `facts`/`free_text`, feelings in `emotions`, what was actually done in `action`/`actions_and_results`, and optional things not yet done in `next_step`. Link related positive events with `related_event_ids`; there's no need to create new health data or rewrite old records.
 
-## 身体不适
+## Physical discomfort
 
-把症状、用药经过、用户怀疑的原因与已证实的解释分开记录。不要把身体不适全归于焦虑，也不要把“吃了某药后不舒服”直接判为药物导致。此技能不诊断、不自行给出停药换药或剂量指令；具体健康问题转入可靠医疗信息核查，必要时建议联系医生或药师。急性危险表现优先处理，不继续填表。支持可以是“这次不舒服值得认真看待”，无需先判断它是心理还是身体原因。
+Record symptoms, the medication history, the causes the user suspects and explanations that have been confirmed, each separately. Don't put all physical discomfort down to anxiety, and don't judge "I felt unwell after taking a medicine" as caused by the medicine. This skill doesn't diagnose and doesn't tell anyone to stop, switch or re-dose a medication; send specific health questions to reliable medical information, and suggest contacting a doctor or pharmacist when needed. Acute danger signs come first — stop filling in the log. Support can be "this discomfort deserves to be taken seriously", without first deciding whether it's psychological or physical.
 
-## 预测
+## Predictions
 
-- 一条预测只写一个可以独立判断的结果。"我会迟到，客户还会取消合作"要拆成两条，放进同一事件的 `predictions` 列表。
-- 涉及他人内心的判断（"他讨厌我"）无法直接验证，不要做成预测。可以把相关的可观察行为写成预测。
-- 结果分六类：`pending`（未到时点）、`occurred`（发生）、`partial`（部分发生）、`not_occurred`（在约定期限和范围内未发生）、`insufficient_info`（信息不足）、`not_applicable`（情境改变，预测不再适用）。
-- 没看到结果不等于没发生，应保持 `pending` 或记为 `insufficient_info`。
-- 记录期间用户采取的行动（`actions_meanwhile`）。用户的准备和沟通本身可能改变了结果，所以"没发生"不能直接说明"当初的担心没道理"。
-- 预测发生时，额外记录实际影响和用户实际是怎么应对的。"发生了，但没有想象中那么糟"往往是最有用的发现。
-- 结算时如实陈述，不要借机说教"你看，担心是多余的"。
+- One prediction holds one outcome that can be judged on its own. "I'll be late, and the client will cancel the deal" becomes two entries in the same event's `predictions` list.
+- Judgements about someone else's inner state ("he hates me") can't be verified directly, so don't make them predictions. Related observable behaviour can be made a prediction.
+- Outcomes come in six kinds: `pending` (not yet due), `occurred` (it happened), `partial` (it partly happened), `not_occurred` (it didn't happen within the agreed deadline and scope), `insufficient_info` (not enough information), `not_applicable` (the situation changed and the prediction no longer applies).
+- Not having seen the outcome isn't the same as it not happening; keep it `pending` or record `insufficient_info`.
+- Record the actions the user took in the meantime (`actions_meanwhile`). The user's preparation and communication may themselves have changed the outcome, so "it didn't happen" doesn't directly show that "the worry was unfounded".
+- When a prediction does happen, also record the actual impact and how the user actually coped. "It happened, but it wasn't as bad as I imagined" is often the most useful finding.
+- When settling, state things honestly; don't seize the chance to lecture "see, the worry was unnecessary".
 
-## 回访
+## Follow-ups
 
-默认随自然对话回访，不自动创建提醒或计划任务。只有用户明确需要定期回顾时才协商节奏（可参考 24 小时、7 天、30 天）；已有授权调度保持原样。预测期限用于之后核对，不等于获准主动通知。用户说“没变化”就简记，不强行加下一次任务。
+By default, follow up within natural conversation; don't create reminders or scheduled tasks automatically. Agree on a rhythm only when the user explicitly wants regular reviews (24 hours, 7 days and 30 days can serve as a reference); keep any existing authorised schedule as it is. A prediction deadline is for checking later; it isn't permission to send proactive notifications. If the user says "nothing's changed", note it briefly; don't force a next task.
 
-一次回访按实际表达记录：新增事实、当前想法、当前感受和下一步；强度、确信度和行动都可留空。其他内容按需展开：
+A follow-up records what was actually expressed: new facts, the current thought, current feelings and the next step; intensity, confidence and actions can all be left empty. Expand the rest as needed:
 
-- **用户想深入整理时**：依次引导支持原想法的证据、不支持原想法或支持其他解释的证据，再请用户自己写出较平衡的理解。你可以给提示，但写进记录的应该是用户认可的说法。当前想法和平衡理解分开记。用户可以还没完全接受新的看法，不要为了填表替他"想通"。
-- **想看整理效果时**：记录整理前后的情绪和确信度（`before_after`）。
-- **反刍时**：记录在重复什么内容，有没有新的事实、理解、决定或行动，是否难以抽离，大概占用了多久，以及上次回访以来反复想起的频率（用档位）。没有新事实不等于白想，可能有新的理解。不要据此下诊断，也不要给出"你在反刍"的判词，只是如实记录，供用户自己观察。
-- **回访结束时**，可以轻轻问一句"这次整理带来了什么"（多选，见 `takeaways`）。越想越乱时这一问尤其有用，"越写越绕，决定先停"本身就是一个正当的结束。
+- **When the user wants to go deeper**: guide them in turn through the evidence for the original thought, then the evidence against it or for other explanations, then invite the user to write a more balanced view themselves. You can offer prompts, but what goes into the record should be wording the user agrees with. Record the current thought and the balanced view separately. The user may not fully accept the new view yet; don't "work it out" for them just to fill in the form.
+- **When they want to see the effect of sorting it out**: record emotions and confidence before and after (`before_after`).
+- **When ruminating**: record what is being repeated, whether there are new facts, understanding, decisions or actions, whether it's hard to disengage, roughly how long it took, and how often it has come back since the last follow-up (as a band). No new facts doesn't mean the thinking was wasted — there may be new understanding. Don't diagnose from this, and don't pronounce "you're ruminating"; just record it as it is, for the user to observe for themselves.
+- **At the end of a follow-up**, you can lightly ask "what did sorting this out bring you this time" (multiple choice, see `takeaways`). It's especially useful when things got more tangled — "the more I wrote, the more tangled it got, so I decided to stop" is a legitimate ending in itself.
 
-回访次数不手填，它等于该事件下回访记录的条数。
+The number of follow-ups isn't entered by hand; it equals the number of follow-up records under the event.
 
-## 结案
+## Closing an event
 
-用户认可暂时放下或结束时，才把事件标为 `closed` 或 `paused`。情绪还在、结果仍不确定，都不妨碍结案。事件状态和预测状态是分开的：事件可以已结案，预测仍是 `pending`。
+Mark an event `closed` or `paused` only when the user agrees to set it aside for now or to end it. Lingering feelings or an uncertain outcome don't prevent closing. Event status and prediction status are separate: an event can be closed while a prediction is still `pending`.
 
-## 回应风格
+## Response style
 
-- 优先回应用户，不必每次播报“已记录”。用户要求确认保存时，一两行说明要点；只在实际写入成功后说已保存，失败时说明未保存，不暴露内部 JSON。不要把整条记录或 JSON 贴给用户。
-- 你是记录助手，不是治疗师：不诊断，不评判情绪的对错，也不急着纠正想法。用户只想倾诉时，记录可以在后台安静完成。
-- 如果用户流露出自伤、自杀或伤害他人的念头，暂停记录流程，先关心这个人，鼓励他联系身边信任的人、专业人员或当地的危机热线。这种时候表格不重要。
+- Respond to the user first; there's no need to announce "logged" every time. When the user asks for confirmation that it's saved, give the key points in a line or two; say it's saved only after the write actually succeeded, and say it wasn't saved if it failed, without exposing internal JSON. Don't paste the whole record or the JSON to the user.
+- You are a logging assistant, not a therapist: don't diagnose, don't judge whether emotions are right or wrong, and don't rush to correct thoughts. When the user just wants to vent, the record can be completed quietly in the background.
+- If the user reveals thoughts of self-harm, suicide or harming others, pause the logging flow and care for the person first; encourage them to contact someone they trust, a professional, or a local crisis line. At such a moment the log doesn't matter.
 
-## 示例
+## Examples
 
-**新事件，出现预测**
+**A new event, with a prediction**
 
-> 用户：刚把方案发给领导，两个小时了没回。他肯定很不满意，明天评审估计要被毙了，焦虑死了。
+> User: I sent the proposal to my boss two hours ago and he still hasn't replied. He must be really unhappy with it — it'll probably get shot down at tomorrow's review. I'm so anxious.
 
-新建事件。事实是"发出方案，两小时未回复"；想法记原话"他肯定很不满意"；情绪为焦虑，强度留空，"焦虑死了"写进 note。检测到预测"明天评审时方案被否决"：期限已有，判定标准不清。推断领域为工作，扭曲为读心术、预言未来。
+Create a new event. The fact is "proposal sent, no reply for two hours"; the thought is recorded in the user's words, "he must be really unhappy with it"; the emotion is anxiety, with intensity left empty and "I'm so anxious" in `note`. A prediction is detected, "the proposal is rejected at tomorrow's review": the deadline is there, the criterion is unclear. Inferred domain: work; distortions: mind reading, fortune telling.
 
-> 等回复的时候确实煎熬。现在确定的是还没收到回复，并不是已经被否决。明天评审才会给我们更多具体信息；今晚可以先不反复刷新。
+> Waiting for a reply really is hard. What we know for sure is that there's no reply yet — not that it's been rejected. Tomorrow's review will tell us more; tonight you could stop refreshing for a while.
 
-**旧事重提**
+**An old event brought up again**
 
-> 用户：又想起上周开会被老王打断那事，越想越气，当时就该怼回去。
+> User: Thinking about last week's meeting again, when Wang cut me off. The more I think about it, the angrier I get — I should have hit back right then.
 
-找到上周的事件，判断是"再次想起"而不是新发生，于是新增回访，`reason: recalled`。当前想法记"当时就该怼回去"；反刍内容为"回放被打断的场面，想象当时该怎么反击"，`new_info` 为空。不追问反刍细节。如果找到两件相似的事件，才问是哪一件。
+Find last week's event, judge it as "recalled" rather than a new occurrence, and add a follow-up with `reason: recalled`. The current thought is "I should have hit back right then"; the rumination content is "replaying being cut off, imagining how to fight back"; `new_info` is empty. Don't ask about the details of the rumination. Only if two similar events are found, ask which one it is.
 
-> 你还在意当时没能把话说完，这能理解。那次被打断不代表你的意见不值得听。我们可以先留下一句下次想说的话，也可以今天先不继续拆这件事。
+> It makes sense that you still mind not getting to finish what you were saying. Being cut off that time doesn't mean your ideas aren't worth hearing. We could keep one sentence you'd like to say next time — or leave this one alone for today.
 
-**统计**
+**Stats**
 
-> 用户：我之前担心的那些事，有多少真的发生了？
+> User: Of all the things I've worried about, how many actually happened?
 
-先读 `references/analysis.md`，按口径计算后回答：
+Read `references/analysis.md` first, compute by its definitions, then answer:
 
-> 一共记过 12 条预测，已结算 9 条：发生 2 条，部分发生 1 条，未发生 6 条；另有 3 条还没到期。按"发生 ÷（发生＋未发生）"算是 2/8。你当时给这些预测的平均概率是 68%。发生的那 2 条，记录的实际影响都比预想的小。
+> You've recorded 12 predictions, and 9 are settled: 2 happened, 1 partly happened and 6 didn't happen; the other 3 aren't due yet. Counting "happened ÷ (happened + didn't happen)", that's 2/8. The average probability you gave these predictions at the time was 68%. For both of the 2 that happened, the recorded actual impact was smaller than you expected.
 
-## 数据结构
+## Data structure
 
-顶层：`{"events": [...], "followups": [...]}`。字段可以为 `null` 或空列表，`null` 表示"未填"，不表示 0 或"没有"。
+Top level: `{"events": [...], "followups": [...]}`. Fields can be `null` or an empty list; `null` means "not filled in", not 0 or "none".
 
-### 事件
+### Event
 
 ```json
 {
   "id": "E-20261027-01",
-  "title": "方案发出后领导未回复",
-  "domain": ["工作"],
+  "title": "No reply from the boss after sending the proposal",
+  "domain": ["work"],
   "occurred_at": "2026-10-27T13:00+08:00",
   "occurred_at_is_estimate": true,
   "created_at": "2026-10-27T15:40+08:00",
-  "facts": "13 点把方案发给领导，到 15 点 40 分没有回复",
-  "automatic_thought": "他肯定很不满意",
+  "facts": "Sent the proposal to the boss at 13:00; no reply as of 15:40",
+  "automatic_thought": "He must be really unhappy with it",
   "thought_confidence": null,
-  "emotions": [{"name": "焦虑", "intensity": 75, "note": "原话：焦虑死了；强度由用户补充"}],
+  "emotions": [{"name": "anxiety", "intensity": 75, "note": "Own words: I'm so anxious; intensity added by the user"}],
   "emotions_recalled": false,
-  "urge": "反复看消息",
+  "urge": "Keep checking messages",
   "action": null,
   "body": null,
   "need": null,
-  "distortions": ["读心术", "预言未来"],
-  "themes": ["工作评价"],
+  "distortions": ["mind reading", "fortune telling"],
+  "themes": ["being evaluated at work"],
   "related_event_ids": [],
   "free_text": null,
   "predictions": [{
     "id": "P1",
-    "statement": "明天评审结束前，方案被明确否决",
-    "criteria": "领导明确表示不采用；提修改意见不算",
+    "statement": "By the end of tomorrow's review, the proposal is clearly rejected",
+    "criteria": "The boss clearly says it won't be used; comments asking for revisions don't count",
     "deadline": "2026-10-28T18:00+08:00",
     "probability": 70,
     "expected_impact": null,
@@ -223,12 +229,12 @@ description: Keep a CBT thought record (an emotion event log) for the user throu
 }
 ```
 
-- `domain`：工作、学习、家庭、亲密关系、社交、健康、财务、自我评价、其他。
-- `distortions`：灾难化、读心术、预言未来、应该思维、非黑即白、过度概括、贴标签、个人化、情绪化推理、否定正面、选择性关注、夸大或缩小。
-- `status`：`open`（待整理）、`following`（跟进中）、`paused`（暂缓关注）、`closed`（已结束）。
-- `corrections` 每项：`{"at", "field", "from", "to", "reason"}`。
+- `domain`: work, study, family, romantic relationship, social life, health, finances, self-evaluation, other.
+- `distortions`: catastrophizing, mind reading, fortune telling, "should" statements, all-or-nothing thinking, overgeneralization, labeling, personalization, emotional reasoning, discounting the positive, selective attention, magnification or minimization.
+- `status`: `open` (still to sort out), `following` (being followed up), `paused` (set aside for now), `closed` (ended).
+- Each `corrections` item: `{"at", "field", "from", "to", "reason"}`.
 
-### 回访
+### Follow-up
 
 ```json
 {
@@ -236,28 +242,28 @@ description: Keep a CBT thought record (an emotion event log) for the user throu
   "event_id": "E-20261027-01",
   "at": "2026-10-28T19:10+08:00",
   "reason": "prediction_due",
-  "new_facts": "评审通过，要求补充预算说明",
-  "current_thought": "反馈主要是针对具体数据的",
-  "emotions": [{"name": "焦虑", "intensity": 30, "note": null}],
+  "new_facts": "The review passed; asked to add a note on the budget",
+  "current_thought": "The feedback was mostly about specific figures",
+  "emotions": [{"name": "anxiety", "intensity": 30, "note": null}],
   "original_thought_confidence": 40,
   "evidence_for": null,
   "evidence_against": null,
   "positive_support": [],
   "balanced_view": null,
   "before_after": null,
-  "actions_and_results": "提前补了两项数据",
-  "next_step": "按要求补预算说明",
+  "actions_and_results": "Added two sets of figures in advance",
+  "next_step": "Add the budget note as asked",
   "rumination": null,
-  "takeaways": ["分清了事实和推测"],
+  "takeaways": ["Separated facts from guesses"],
   "inferred": []
 }
 ```
 
-- `reason`：`scheduled`（计划回访）、`new_fact`（有新事实）、`recalled`（再次想起）、`retriggered`（被新情境勾起，但不是同类事件再次发生）、`reconfirm`（想再确认一次）、`prediction_due`（预测到期）、`deep_dive`（主动整理）。
-- `before_after`：`{"before": {"emotions": [...], "confidence": n}, "after": {...}}`。
-- `rumination`：`{"content": "在重复什么", "new_info": [], "hard_to_disengage": "", "time_spent": "", "frequency_since_last": ""}`
-  - `new_info` 多选：`new_fact`、`new_understanding`、`decision`、`action`；空列表表示没有。
-  - `hard_to_disengage`：`no`、`somewhat`、`clearly`、`unsure`。
-  - `frequency_since_last`：`none`、`occasional`、`several`、`many`、`unknown`。
-- `takeaways` 多选：分清了事实和推测／找到了需要沟通的问题或边界／明确或完成了一个行动／能容许暂时不知道结果／注意力回到了当下／暂无明显变化／越写越绕，决定先停。
-- 结算预测时，同时更新事件里对应预测的 `status`、`resolved_at`、`outcome_evidence`、`actual_impact`、`actions_meanwhile`。这是预测上唯一允许事后写入的部分，事件的其他原始字段保持不变。
+- `reason`: `scheduled` (a planned follow-up), `new_fact` (there are new facts), `recalled` (it came back to mind), `retriggered` (stirred up by a new situation, but not a similar event happening again), `reconfirm` (wanting to confirm it again), `prediction_due` (a prediction is due), `deep_dive` (actively sorting it out).
+- `before_after`: `{"before": {"emotions": [...], "confidence": n}, "after": {...}}`.
+- `rumination`: `{"content": "what is being repeated", "new_info": [], "hard_to_disengage": "", "time_spent": "", "frequency_since_last": ""}`
+  - `new_info` (multiple choice): `new_fact`, `new_understanding`, `decision`, `action`; an empty list means none.
+  - `hard_to_disengage`: `no`, `somewhat`, `clearly`, `unsure`.
+  - `frequency_since_last`: `none`, `occasional`, `several`, `many`, `unknown`.
+- `takeaways` (multiple choice): separated facts from guesses / found an issue or boundary that needs talking about / set or completed an action / can tolerate not knowing the outcome for now / attention came back to the present / no clear change yet / the more I wrote, the more tangled it got, so I decided to stop.
+- When settling a prediction, also update the matching prediction in the event: `status`, `resolved_at`, `outcome_evidence`, `actual_impact`, `actions_meanwhile`. This is the only part of a prediction that may be written afterwards; the event's other original fields stay unchanged.

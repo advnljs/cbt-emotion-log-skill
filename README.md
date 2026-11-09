@@ -2,7 +2,7 @@
 
 A little companion that keeps a **CBT thought record** for you — just by talking. When something upsets you, tell your agent the way you would tell a friend. It answers you first, then quietly writes the event down: what actually happened, what you thought, how you felt, and what you are worried will happen next. Later it helps you look back.
 
-The skill itself speaks Chinese (中文), the language it was written for.
+It works in any language — it talks with you in the language you write in, and keeps your own words exactly as you said them.
 
 - **In the moment, in your own words.** No form to fill in. It keeps your original words and never invents a score for you; it asks at most one question, and only when the next step depends on it.
 - **Support first.** It responds to the person before the record. If you only want to vent, the record is kept in the background.
@@ -31,7 +31,7 @@ npx cbt-emotion-log --dir <path> # or into any agent's skills folder
 
 Or download `cbt-emotion-log.zip` from the [latest release](https://github.com/advnljs/cbt-emotion-log-skill/releases/latest) and import it in any agent that lets you upload or add a skill (for example WorkBuddy's skills page).
 
-Then start a new session and just talk, for example: 「刚把方案发给领导，两个小时了没回，焦虑死了。」
+Then start a new session and just talk, for example: *"I sent my proposal to my boss two hours ago and he still hasn't replied. I'm so anxious."*
 
 ## Where your records live
 

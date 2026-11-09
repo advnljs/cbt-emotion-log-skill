@@ -1,55 +1,54 @@
-# 统计与回顾口径
+# Stats and review definitions
 
-用户问"有多少担心真的发生了""我最近总在气什么""帮我做个月度回顾"时读这份文件。
+Read this file when the user asks "how many of my worries actually happened?", "what have I been angry about lately?", "give me a monthly review", and the like. Answer in the user's language.
 
-## 通用规则
+## General rules
 
-- **空白表示未填**，不是 0，不是"没有情绪"，也不是"没发生"。缺数据的记录从对应统计中排除，并说明排除了几条。
-- **每个结论都附样本数。** 样本少于 5 条时，说明"样本还少，仅供参考"。
-- 统计只反映用户记下来的事，不代表生活的全貌。
-- `inferred` 里的标签默认参与统计；用户想看时，可以只统计用户确认过的内容。
-- 能用代码计算就用代码，避免心算出错。
-- 结果以观察的方式呈现，不下诊断，不说教。没有数字时保留自述变化，不换算成分数。事实支持的来源和用户立场分开，不因反复提及而增加证据权重。
+- **Empty means not filled in** — not 0, not "no emotion", and not "didn't happen". Leave records with missing data out of the stat concerned, and say how many were left out.
+- **Every conclusion comes with its sample size.** With fewer than 5, say "the sample is still small; take it as a rough reference only".
+- Stats reflect only what the user wrote down, not the whole of their life.
+- Labels listed in `inferred` count by default; when the user wants, count only what the user has confirmed.
+- Compute with code whenever you can, to avoid mental-arithmetic mistakes.
+- Present results as observations — no diagnoses, no lecturing. Where there are no numbers, keep the self-reported change rather than converting it into a score. Keep the sources of factual support apart from the user's stance, and don't give anything more evidential weight because it has been mentioned repeatedly.
 
-## 1. 预测
+## 1. Predictions
 
-- **每条预测只算一次**，不论回访了多少次。
-- **发生率** = `occurred` ÷（`occurred` + `not_occurred`）。`partial`、`pending`、`insufficient_info`、`not_applicable` 的数量单独列出，不进分母。分母为 0 时说"暂无可计算结果"。
-- **校准度**：取已结算为 `occurred` 或 `not_occurred` 且填了 `probability` 的预测，比较平均预计概率与实际发生率。数据较多时，按概率段（0–30、31–60、61–100）分组对比，每组附样本数。
-- **影响**：对发生或部分发生的预测，对比 `expected_impact` 和 `actual_impact`，并提到用户实际是怎么应对的。
-- **期间的行动**：说明有多少条结果是在用户采取了行动（`actions_meanwhile` 非空）之后出现的。这些结果反映的是"担心＋应对"之后的情况，不能单独证明当初的担心多余或必要。
+- **Each prediction counts once**, however many follow-ups it had.
+- **Occurrence rate** = `occurred` ÷ (`occurred` + `not_occurred`). List the counts of `partial`, `pending`, `insufficient_info` and `not_applicable` separately; they don't go into the denominator. If the denominator is 0, say "nothing to compute yet".
+- **Calibration**: take the predictions settled as `occurred` or `not_occurred` that have a `probability`, and compare the average predicted probability with the actual occurrence rate. With more data, compare by probability band (0–30, 31–60, 61–100), each with its sample size.
+- **Impact**: for predictions that occurred or partly occurred, compare `expected_impact` with `actual_impact`, and mention how the user actually coped.
+- **Actions in the meantime**: say how many outcomes came after the user had taken action (`actions_meanwhile` not empty). These outcomes reflect "worry + coping"; on their own they can't prove that the worry was unnecessary, or that it was necessary.
 
-## 2. 情绪与确信度的变化
+## 2. Changes in emotion and confidence
 
-- 按事件、按同一种情绪名称，把强度排成时间序列：初始记录 → 各次回访。不同情绪分开看，不要把焦虑和愤怒加在一起。
-- `emotions_recalled: true` 的点单独标注，它是回忆估计，不是当时的评分。
-- 原想法的确信度用同样方式排列，它始终针对原来那句话。
-- 数据点足够时，可以给出"初始到最近一次的变化"和"降到初始一半大约用了多久"。
-- 有 `before_after` 的回访可以单独看一次整理的即时变化，但要说明这和时间推移、现实进展的作用分不开。
+- Per event and per emotion name, line up the intensity as a time series: initial record → each follow-up. Look at different emotions separately; don't add anxiety and anger together.
+- Mark points with `emotions_recalled: true` separately; they are estimates from memory, not ratings made at the time.
+- Line up the confidence in the original thought the same way; it always refers to the original sentence.
+- With enough data points, you can give "the change from the first record to the latest" and "roughly how long it took to drop to half the initial level".
+- Follow-ups with `before_after` can be looked at on their own for the immediate change from one sorting-out session, but say that this can't be separated from the effects of time passing and of real-world developments.
 
-## 3. 反刍
+## 3. Rumination
 
-- 某事件下 `reason: recalled` 的回访条数，以及 `frequency_since_last` 档位随时间的变化。
-- 反刍回访中 `new_info` 为空的比例，以及出现过新理解、决定或行动的次数。
-- 分开呈现两件事：同一事件被反复想起（`recalled` 回访数），以及同一主题的新事件反复发生（按 `themes` 或 `related_event_ids` 计数）。前者是回放，后者是现实问题在重复。
+- The number of `reason: recalled` follow-ups under an event, and how the `frequency_since_last` band changes over time.
+- The share of rumination follow-ups with an empty `new_info`, and the number of times new understanding, decisions or actions appeared.
+- Present two things separately: the same event being recalled again and again (the count of `recalled` follow-ups), and new events on the same theme recurring (counted by `themes` or `related_event_ids`). The first is replaying; the second is a real-world problem repeating.
 
-## 4. 模式
+## 4. Patterns
 
-- **认知扭曲**：按事件计数，一个事件有多个标签时各算一次。给出最常见的几种及其所占事件比例。
-- **主题**：按事件计数，看哪些主题跨多个事件出现。主题与情绪组合起来看更有用，比如"'被忽视'主题下 80% 是愤怒"。
-- **领域分布**：按事件计数。
-- **时间分布**（星期、时段）：仅在用户问到时提供。
+- **Cognitive distortions**: count by event; an event with several labels counts once for each. Give the few most common ones and the share of events they appear in.
+- **Themes**: count by event, and see which themes appear across several events. Themes are more useful combined with emotions, e.g. "80% of the 'being ignored' theme is anger".
+- **Domain distribution**: count by event.
+- **Time distribution** (day of week, time of day): only when the user asks.
 
-## 5. 回顾报告
+## 5. Review report
 
-用户要周回顾或月回顾时，按以下顺序，每部分一两句话：
+When the user wants a weekly or monthly review, go in this order, a sentence or two per part:
 
-1. 本期记录了几件事，涉及哪些领域。
-2. 预测的结算情况（附样本数）。
-3. 情绪变化明显的事件。
-4. 反复出现的主题或认知扭曲。
-5. 用户愿意回看的美好经历、已有的正面支持，以及自述有帮助的行动；不把同时发生当作因果，不以互动量衡量价值。
-6. 用户仍想关注的待回访和待结算清单；已说暂缓的话题不催促。
+1. How many things were recorded this period, and which domains they touch.
+2. How the predictions settled (with sample sizes).
+3. Events with a clear change in emotion.
+4. Recurring themes or cognitive distortions.
+5. Good experiences the user is willing to look back on, existing positive support, and actions the user reported as helpful; don't treat things happening together as cause and effect, and don't measure worth by engagement.
+6. The follow-ups and predictions still due that the user still wants to keep an eye on; don't press on topics the user has said to set aside.
 
-不要逐条复述记录。用户想看某一件事的细节，再展开那一件。
-
+Don't recount the records one by one. If the user wants the details of one thing, expand that one.
